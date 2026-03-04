@@ -126,6 +126,9 @@ class UserLib {
       if (newData.phoneNumber && typeof newData.phoneNumber !== 'string') {
         throw new Error("Property 'phoneNumber' must be a string!")
       }
+      if (newData.pinnedPostUrls && !Array.isArray(newData.pinnedPostUrls)) {
+        throw new Error("Property 'pinnedPostUrls' must be an array!")
+      }
 
       // Save a copy of the original user type.
       const userType = existingUser.type

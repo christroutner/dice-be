@@ -407,6 +407,19 @@ describe('#users-use-case', () => {
         assert.include(err.message, "Property 'phoneNumber' must be a string!")
       }
     })
+    it('should throw an error if non-array pinnedPostUrls given', async () => {
+      try {
+        const newData = {
+          pinnedPostUrls: 1234
+        }
+        await uut.updateUser(testUser, newData)
+
+        assert.fail('Unexpected code path')
+      } catch (err) {
+        // console.log(err)
+        assert.include(err.message, "Property 'pinnedPostUrls' must be an array!")
+      }
+    })
     it('should update the user model', async () => {
       const newData = {
         email: 'test@test.com',

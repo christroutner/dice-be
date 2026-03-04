@@ -20,7 +20,8 @@ const User = new mongoose.Schema({
   about: { type: String },
   website: { type: String },
   phoneNumber: { type: String },
-  bannerUrl: { type: String }
+  bannerUrl: { type: String },
+  pinnedPostUrls: { type: Array, default: [] }
 })
 
 // Before saving, convert the password to a hash.
