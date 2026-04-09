@@ -1,38 +1,58 @@
-# Start the service with the command 'docker-compose up -d'
-
-version: '3.9'
+# From this directory: docker compose up -d --build
+#
+# Build context for the web image expects this layout (sibling repos):
+#   <parent>/
+#     pma-be/   (this repository)
+#     pma-fe/
 
 services:
-  mongo-ipfs-service:
-    image: mongo:4.2.0
-    container_name: mongo-ipfs-service
-    ports:
-      - '5555:27017' # <host port>:<container port>
+  mongo:
+    image: mongo:7
+    container_name: pma-mongo
+    restart: unless-stopped
     volumes:
-      - ../data/database:/data/db
-    command: mongod --logpath=/dev/null # -- quiet
-    restart: always
+      # Host path: pma-be/production/data/mongo (relative to this compose file)
+      - ../data/mongo:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand({ ping: 1 })']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
-  ipfs-service:
-    build: .
-    #image: christroutner/ipfs-service-provider:v5.0.1
-    container_name: ipfs-service
+  pma-be:
+    build:
+      context: ../..
+      dockerfile: production/docker/Dockerfile
+    container_name: pma-be
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - '${PMA_BE_PORT:-5020}:5020'
+    environment:
+      SVC_ENV: prod
+      NODE_ENV: production
+      PORT: '5020'
+      DBURL: mongodb://mongo:27017/pma-prod
+      DISABLE_IPFS: 'true'
+    env_file:
+      - .env
     logging:
-      driver: 'json-file'
+      driver: json-file
       options:
         max-size: '10m'
         max-file: '10'
-    mem_limit: 1000mb
-    links:
-      - mongo-ipfs-service
-    ports:
-      # <host port>:<container port>
-      - '5010:5010' # REST API
-      - '4001:4001' # TCP
-      - '4003:4003' # Websockets
-      - '4005:4005' # WebRTC
 
-    volumes:
-      - ../data/ipfsdata:/home/safeuser/ipfs-service-provider/.ipfsdata
-      - ./start-production.sh:/home/safeuser/ipfs-service-provider/start-production.sh
-    restart: always
+  pma-fe:
+    build:
+      context: ../../..
+      dockerfile: pma-be/production/docker/Dockerfile.nginx
+      args:
+        REACT_APP_PMA_SERVER: ${REACT_APP_PMA_SERVER:-http://localhost:5020}
+    container_name: pma-fe
+    restart: unless-stopped
+    # Default 8080 — port 80 is often taken by Apache/nginx on the host.
+    ports:
+      - '${PMA_FE_PORT:-8080}:80'
