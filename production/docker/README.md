@@ -1,61 +1,50 @@
-# Docker Containers
+# Docker Compose (PMA stack)
 
-The 'production' environment is assumed to be a set of Docker containers orchestrated with Docker Compose. The files in this directory will stand up three Docker containers:
+This directory runs three services:
 
-1 An instance of go-ipfs.
-2 An instance of MongoDB.
-3 The JavaScript software in this repository.
+1. **mongo** — MongoDB 7; data is stored on the host at **`pma-be/production/data/mongo`** (bind mount from `../data/mongo` next to this compose file). If the container cannot write there (Linux permissions), fix ownership for UID **999** (the `mongodb` user in the image), e.g. `sudo chown -R 999:999 ../data/mongo`.
+2. **pma-be** — This repository’s Node API on port **5020** (configurable via `PMA_BE_PORT`).
+3. **pma-fe** — React app from the sibling **pma-fe** repo, built at image build time and served by **nginx** on host port **8080** by default (configurable via `PMA_FE_PORT`; port 80 is avoided because it is often already in use).
 
-The software in this repository depends on the first two containers, so if they aren't running correctly, the application won't run correctly either.
+## Repository layout
 
-## IPFS
+The **pma-fe** image build uses a context of the **parent directory** of `pma-be`, so both repositories must sit next to each other, for example:
 
-IPFS can be a little tricky to set up. By default, the container uses the following ports:
-
-- 4001 for TCP connections, exposed publicly.
-- 5001 for control by the application, exposed privately.
-- 8080 for an IPFS gateway, consumed by the application, exposed privately.
-
-If you already have an IPFS node running on a the computer, you will need to change the ports to avaid a conflict. To change the ports from the default, you'll need to perform a series of steps, and the order of the steps matter.
-
-1. Edit the `docker-compose.yml` file and change the ports. Then save the file. Here is an example:
-
-```
-ports:
-  - 4101:4101
-  - 172.17.0.1:5101:5101
-  - 172.17.0.1:8180:8180
+```text
+dectur-dice/
+  pma-be/    ← this repo (contains production/docker/)
+  pma-fe/    ← React app
 ```
 
-2. Bring the Docker containers up, and then back down. This will allow the IPFS container to create the config file that you'll need to edit.
+If you only clone `pma-be`, adjust the `pma-fe` service in `docker-compose.yml` or build the frontend image separately.
 
-- `docker-compose up -d`
-- Wait a few seconds.
-- `docker-compose down`
+## Usage
 
-3. Update the generated config file at `../data/go-ipfs/data/config`, to update the ports in the config file, like this:
+From `production/docker/`:
 
-```
-"Addresses": {
-    "API": "/ip4/0.0.0.0/tcp/5101",
-    "Announce": [],
-    "AppendAnnounce": [],
-    "Gateway": "/ip4/0.0.0.0/tcp/8180",
-    "NoAnnounce": [],
-    "Swarm": [
-      "/ip4/0.0.0.0/tcp/4101",
-      "/ip6/::/tcp/4101",
-      "/ip4/0.0.0.0/udp/4101/quic",
-      "/ip6/::/udp/4101/quic"
-    ]
-  },
-
+```bash
+docker compose up -d --build
 ```
 
-4. Update the port changes in the `start-production.sh` shell script. This tells the application which ports to use, in order to control the IPFS node, are are used when signaling other nodes.
+- API: `http://localhost:5020` (REST; API docs are also mounted at `/` on that server).
+- Web UI: `http://localhost:8080` (or the host port you set with `PMA_FE_PORT`; set `PMA_FE_PORT=80` if you want the standard HTTP port and nothing else is bound there).
 
-5. Quickly rebuild the containers, to add the modified `start-production.sh` shell script to the application Docker container:
+The browser talks to the API using the URL baked in at **build time**: `REACT_APP_PMA_SERVER` (default `http://localhost:5020`). For a public deployment, set that to your API’s public URL before `docker compose build`, e.g.:
 
-- `docker-compose build`
+```bash
+export REACT_APP_PMA_SERVER=https://api.example.com
+docker compose build pma-fe --no-cache
+docker compose up -d
+```
 
-6. Now start the containers, and the port changes to IPFS should be complete.
+Optional variables live in `.env` next to this README (see comments there).
+
+## Running the API without Docker
+
+From the **pma-be** repository root, after installing dependencies and with MongoDB reachable:
+
+```bash
+./production/docker/start-production.sh
+```
+
+Override `DBURL`, `PORT`, etc. in the environment as needed.

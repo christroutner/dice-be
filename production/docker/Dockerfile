@@ -1,73 +1,23 @@
-# Create a Dockerized API server
-#
+# PMA backend API — build from repository root (pma-be).
+# docker compose build context: ../..  (see docker-compose.yml)
 
-#IMAGE BUILD COMMANDS
-# ct-base-ubuntu = ubuntu 18.04 + nodejs v10 LTS
-#FROM christroutner/ct-base-ubuntu
-FROM ubuntu:20.04
-MAINTAINER Chris Troutner <chris.troutner@gmail.com>
+FROM node:20-bookworm-slim
 
-#Update the OS and install any OS packages needed.
-RUN apt-get update
-RUN apt-get install -y sudo git curl nano gnupg wget
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-#Install Node and NPM
-RUN sudo apt-get install -y ca-certificates curl gnupg
-RUN sudo mkdir -p /etc/apt/keyrings
-RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | sudo tee /etc/apt/sources.list.d/nodesource.list
-RUN sudo apt-get update
-RUN sudo apt-get install -y nodejs build-essential
+WORKDIR /app
 
-#Create the user 'safeuser' and add them to the sudo group.
-#RUN useradd -ms /bin/bash safeuser
-#RUN adduser safeuser sudo
+COPY package.json package-lock.json ./
+RUN npm ci
 
-#Set password to 'password' change value below if you want a different password
-#RUN echo safeuser:password | chpasswd
+COPY . ./
 
-#Set the working directory to be the home directory
-WORKDIR /home/safeuser
+# apidoc is a devDependency; generate docs then drop dev packages for a smaller runtime image.
+RUN npm run docs && npm prune --omit=dev
 
-#Setup NPM for non-root global install
-#RUN mkdir /home/safeuser/.npm-global
-#RUN chown -R safeuser .npm-global
-#RUN echo "export PATH=~/.npm-global/bin:$PATH" >> /home/safeuser/.profile
-#RUN runuser -l safeuser -c "npm config set prefix '~/.npm-global'"
+ENV NODE_ENV=production
+EXPOSE 5020
 
-# Update to the latest version of npm.
-#RUN npm install -g npm@7.23.0
-#RUN npm install -g npm
-
-# npm mirror to prevent direct dependency on npm.
-RUN npm set registry http://94.130.170.209:4873/
-
-# Switch to user account.
-#USER safeuser
-# Prep 'sudo' commands.
-#RUN echo 'abcd8765' | sudo -S pwd
-
-# Clone the rest.bitcoin.com repository
-WORKDIR /home/safeuser
-RUN git clone https://github.com/Permissionless-Software-Foundation/ipfs-service-provider
-
-# Switch to the desired branch. `master` is usually stable,
-# and `stage` has the most up-to-date changes.
-WORKDIR /home/safeuser/ipfs-service-provider
-
-# For development: switch to unstable branch
-RUN git checkout master
-
-# Install dependencies
-#RUN mkdir .ipfsdata
-#RUN npm install -g @mapbox/node-pre-gyp
-RUN npm install
-
-# Generate the API docs
-RUN npm run docs
-
-# Start the application.
-#COPY start-production.sh start-production.sh
-CMD ["./start-production.sh"]
-
-#CMD ["npm", "start"]
+CMD ["node", "index.js"]

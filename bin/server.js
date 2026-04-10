@@ -64,6 +64,18 @@ class Server {
 
       // MIDDLEWARE START
 
+      // Enable CORS for testing - MUST BE FIRST
+      // THIS IS A SECURITY RISK. COMMENT OUT FOR PRODUCTION
+      // Dev Note: This line must come BEFORE all other middleware to handle OPTIONS preflight requests
+      app.use(cors({
+        origin: '*',
+        allowMethods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+        exposeHeaders: ['Content-Length', 'Date', 'X-Request-Id'],
+        maxAge: 86400,
+        credentials: false
+      }))
+
       app.use(convert(logger()))
       app.use(bodyParser())
       app.use(session())
@@ -81,11 +93,6 @@ class Server {
       applyPassportMods(passport)
       app.use(passport.initialize())
       app.use(passport.session())
-
-      // Enable CORS for testing
-      // THIS IS A SECURITY RISK. COMMENT OUT FOR PRODUCTION
-      // Dev Note: This line must come BEFORE controllers.attachRESTControllers()
-      app.use(cors({ origin: '*' }))
 
       // Wait for any adapters to initialize.
       await this.controllers.initAdapters()
