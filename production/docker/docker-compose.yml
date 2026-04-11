@@ -1,9 +1,6 @@
 # From this directory: docker compose up -d --build
 #
-# Build context for the web image expects this layout (sibling repos):
-#   <parent>/
-#     pma-be/   (this repository)
-#     pma-fe/
+# The dice-fe image clones the front end from GitHub at build time (see Dockerfile.nginx).
 
 services:
   mongo:
@@ -47,10 +44,12 @@ services:
 
   dice-fe:
     build:
-      context: ../../..
-      dockerfile: dice-be/production/docker/Dockerfile.nginx
+      context: ../..
+      dockerfile: production/docker/Dockerfile.nginx
       args:
         REACT_APP_DICE_SERVER: ${REACT_APP_DICE_SERVER:-http://localhost:5020}
+        DICE_FE_REPO: ${DICE_FE_REPO:-https://github.com/christroutner/dice-fe.git}
+        DICE_FE_GIT_REF: ${DICE_FE_GIT_REF:-main}
     container_name: dice-fe
     restart: unless-stopped
     # Default 8080 — port 80 is often taken by Apache/nginx on the host.
