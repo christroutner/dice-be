@@ -8,10 +8,10 @@
 services:
   mongo:
     image: mongo:7
-    container_name: pma-mongo
+    container_name: dice-mongo
     restart: unless-stopped
     volumes:
-      # Host path: pma-be/production/data/mongo (relative to this compose file)
+      # Host path: dice-be/production/data/mongo (relative to this compose file)
       - ../data/mongo:/data/db
     healthcheck:
       test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand({ ping: 1 })']
@@ -20,22 +20,22 @@ services:
       retries: 5
       start_period: 20s
 
-  pma-be:
+  dice-be:
     build:
       context: ../..
       dockerfile: production/docker/Dockerfile
-    container_name: pma-be
+    container_name: dice-be
     restart: unless-stopped
     depends_on:
       mongo:
         condition: service_healthy
     ports:
-      - '${PMA_BE_PORT:-5020}:5020'
+      - '${DICE_BE_PORT:-5020}:5020'
     environment:
       SVC_ENV: prod
       NODE_ENV: production
       PORT: '5020'
-      DBURL: mongodb://mongo:27017/pma-prod
+      DBURL: mongodb://mongo:27017/dice-prod
       DISABLE_IPFS: 'true'
     env_file:
       - .env
@@ -45,14 +45,14 @@ services:
         max-size: '10m'
         max-file: '10'
 
-  pma-fe:
+  dice-fe:
     build:
       context: ../../..
-      dockerfile: pma-be/production/docker/Dockerfile.nginx
+      dockerfile: dice-be/production/docker/Dockerfile.nginx
       args:
-        REACT_APP_PMA_SERVER: ${REACT_APP_PMA_SERVER:-http://localhost:5020}
-    container_name: pma-fe
+        REACT_APP_DICE_SERVER: ${REACT_APP_DICE_SERVER:-http://localhost:5020}
+    container_name: dice-fe
     restart: unless-stopped
     # Default 8080 — port 80 is often taken by Apache/nginx on the host.
     ports:
-      - '${PMA_FE_PORT:-8080}:80'
+      - '${DICE_FE_PORT:-8080}:80'
