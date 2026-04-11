@@ -1,24 +1,26 @@
-# Multi-stage: build pma-fe (React), serve static assets with nginx.
-# Build context must be the parent directory that contains both `pma-be` and `pma-fe`
-# (see docker-compose.yml `context: ../../..`).
+# Multi-stage: clone pma-fe from GitHub, build React app, serve static assets with nginx.
+# Build context must be the `pma-be` repository root (see docker-compose.yml `context: ../..`).
 
 FROM node:20-bookworm-slim AS build
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-COPY pma-fe/package.json pma-fe/package-lock.json ./
-RUN npm ci
-
-COPY pma-fe/ ./
+ARG PMA_FE_REPO=https://github.com/christroutner/pma-fe.git
+ARG PMA_FE_GIT_REF=main
+RUN git clone --depth 1 --branch "${PMA_FE_GIT_REF}" "${PMA_FE_REPO}" .
 
 ARG REACT_APP_PMA_SERVER=http://localhost:5020
 ENV REACT_APP_PMA_SERVER=$REACT_APP_PMA_SERVER
 
-RUN npm run build
+RUN npm ci && npm run build
 
 FROM nginx:1.27-alpine
 
 COPY --from=build /app/build /usr/share/nginx/html
-COPY pma-be/production/docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY production/docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

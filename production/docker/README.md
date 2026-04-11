@@ -4,19 +4,16 @@ This directory runs three services:
 
 1. **mongo** — MongoDB 7; data is stored on the host at **`pma-be/production/data/mongo`** (bind mount from `../data/mongo` next to this compose file). If the container cannot write there (Linux permissions), fix ownership for UID **999** (the `mongodb` user in the image), e.g. `sudo chown -R 999:999 ../data/mongo`.
 2. **pma-be** — This repository’s Node API on port **5020** (configurable via `PMA_BE_PORT`).
-3. **pma-fe** — React app from the sibling **pma-fe** repo, built at image build time and served by **nginx** on host port **8080** by default (configurable via `PMA_FE_PORT`; port 80 is avoided because it is often already in use).
+3. **pma-fe** — React app cloned from [christroutner/pma-fe](https://github.com/christroutner/pma-fe) at image build time, then built and served by **nginx** on host port **8080** by default (configurable via `PMA_FE_PORT`; port 80 is avoided because it is often already in use).
 
-## Repository layout
+## Front-end source
 
-The **pma-fe** image build uses a context of the **parent directory** of `pma-be`, so both repositories must sit next to each other, for example:
+The **pma-fe** image does not require a local **pma-fe** checkout. The Dockerfile clones the GitHub repository (default branch `main`). Override with build args from the environment if needed:
 
-```text
-dectur-dice/
-  pma-be/    ← this repo (contains production/docker/)
-  pma-fe/    ← React app
-```
+- **`PMA_FE_REPO`** — Git remote URL (default `https://github.com/christroutner/pma-fe.git`).
+- **`PMA_FE_GIT_REF`** — Branch or tag for `git clone --depth 1 --branch` (default `main`). Use a tag for reproducible builds.
 
-If you only clone `pma-be`, adjust the `pma-fe` service in `docker-compose.yml` or build the frontend image separately.
+The compose build context is the **pma-be** repository root (same as the **pma-be** service), so only this repo needs to be present on the host.
 
 ## Usage
 

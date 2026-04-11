@@ -1,9 +1,6 @@
 # From this directory: docker compose up -d --build
 #
-# Build context for the web image expects this layout (sibling repos):
-#   <parent>/
-#     pma-be/   (this repository)
-#     pma-fe/
+# The pma-fe image clones the front end from GitHub at build time (see Dockerfile.nginx).
 
 services:
   mongo:
@@ -47,10 +44,12 @@ services:
 
   pma-fe:
     build:
-      context: ../../..
-      dockerfile: pma-be/production/docker/Dockerfile.nginx
+      context: ../..
+      dockerfile: production/docker/Dockerfile.nginx
       args:
         REACT_APP_PMA_SERVER: ${REACT_APP_PMA_SERVER:-http://localhost:5020}
+        PMA_FE_REPO: ${PMA_FE_REPO:-https://github.com/christroutner/pma-fe.git}
+        PMA_FE_GIT_REF: ${PMA_FE_GIT_REF:-main}
     container_name: pma-fe
     restart: unless-stopped
     # Default 8080 — port 80 is often taken by Apache/nginx on the host.
