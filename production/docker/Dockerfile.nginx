@@ -6,19 +6,19 @@ FROM node:20-bookworm-slim AS build
 
 WORKDIR /app
 
-COPY pma-fe/package.json pma-fe/package-lock.json ./
+COPY dice-fe/package.json dice-fe/package-lock.json ./
 RUN npm ci
 
-COPY pma-fe/ ./
+COPY dice-fe/ ./
 
-ARG REACT_APP_PMA_SERVER=http://localhost:5020
-ENV REACT_APP_PMA_SERVER=$REACT_APP_PMA_SERVER
+ARG REACT_APP_DICE_SERVER=http://localhost:5020
+ENV REACT_APP_DICE_SERVER=$REACT_APP_DICE_SERVER
 
 RUN npm run build
 
 FROM nginx:1.27-alpine
 
 COPY --from=build /app/build /usr/share/nginx/html
-COPY pma-be/production/docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+COPY dice-be/production/docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
